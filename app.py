@@ -7,7 +7,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 # טעינת מפתח ה-API (תומך גם ב-Streamlit Secrets וגם בקובץ .env מקומי)
-api_key = os.getenv("OPENAI_API_KEY")
+api_key = DItyIfPjPQUAKeqEhUYX52hhpVtO9q7X3evcdzBqk65_XrJcTZKhtGWDfVt9Gyn8rCxz7CFSShT3BlbkFJKOtQuwiEf9QSuX9-XI60Cz5NnOMDOePVesmNYvuxrhU0JFRgV0v4k5KKCwPzG7PcA4DVmh1HwA
+
 if not api_key:
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
