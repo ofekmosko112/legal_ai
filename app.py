@@ -22,10 +22,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# הגדרת מפתח ה-OpenAI בצורה נקייה ומאובטחת למניעת שגיאות אימות
-# שים לב: הכנס במרכאות למטה את מפתח ה-API הפעיל שלך
+# חיבור מאובטח ל-OpenAI מתוך ה-Secrets של Streamlit
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 actual_model = "gpt-4o"
 
 # עיצוב CSS יוקרתי (Executive Styling & Custom Cards)
@@ -76,12 +74,17 @@ with st.sidebar:
     st.title("🛡️ Legal AI Executive")
     st.markdown(f"**מסלול נוכחי:** `{'Pro Enterprise' if st.session_state.user_plan == 'Pro' else 'Free Tier'}`")
     
+    # כפתור שדרוג נגיש ובולט תמיד בתפריט הצד
+    if st.button("🚀 מעבר / שדרוג למסלול Pro"):
+        show_checkout_modal()
+
+    st.markdown("---")
+    
     if st.session_state.user_plan == "Free":
         docs_left = 3 - st.session_state.free_docs_used
         st.metric("מסמכים חינמיים שנותרו", f"{docs_left} / 3")
         if docs_left <= 0:
             st.error("הסתיימה המכסה החינמית.")
-            if st.button("שדרג ל-Pro עכשיו ⚡"): show_checkout_modal()
     else:
         st.metric("מכסת Pro חודשית", f"{50 - st.session_state.pro_docs_used} / 50")
 
