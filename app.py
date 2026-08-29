@@ -39,7 +39,7 @@ with st.sidebar:
         actual_model = "llama3"
     else:
         # מפתח מוטמע ישירות למניעת שגיאות ענן
-        client = OpenAI(api_key="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")
+        client = OpenAI(api_key="sk-proj-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")
         actual_model = "gpt-4o"
         st.caption("☁️ מחובר ל-OpenAI API")
 
