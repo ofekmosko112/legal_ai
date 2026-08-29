@@ -24,7 +24,7 @@ st.set_page_config(
 
 # הגדרת מפתח ה-OpenAI בצורה נקייה ומאובטחת למניעת שגיאות אימות
 # שים לב: הכנס במרכאות למטה את מפתח ה-API הפעיל שלך
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = "sk-proj-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"
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 actual_model = "gpt-4o"
 
