@@ -56,7 +56,7 @@ if uploaded_files:
                 t = page.extract_text()
                 if t: all_text += t + "\n"
                 
-    st.success(, f"הקבצים נטענו בהצלחה! סך הכל תווים: {len(all_text)}")
+    st.success(, f"הקבצים נטענו בהצלחה! סך הכל תווים: {len(all_text)})
     if st.button("הפק ניתוח מהיר"):
         resp = client.chat.completions.create(
             model=actual_model,
