@@ -24,9 +24,8 @@ st.set_page_config(
 
 # חיבור מאובטח ל-OpenAI מתוך ה-Secrets של Streamlit
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-actual_model = "gpt-4o"
 
-# עיצוב CSS יוקרתי (Executive Styling & Custom Cards)
+# עיצוב CSS יוקרתי
 st.markdown("""
 <style>
     .metric-card {
@@ -48,45 +47,84 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# אתחול Session State
+# אתחול Session State למכסות ומסלולים
 if "user_plan" not in st.session_state: st.session_state.user_plan = "Free"
-if "free_docs_used" not in st.session_state: st.session_state.free_docs_used = 1
-if "pro_docs_used" not in st.session_state: st.session_state.pro_docs_used = 5
+if "free_docs_used" not in st.session_state: st.session_state.free_docs_used = 0
+if "pro_docs_used" not in st.session_state: st.session_state.pro_docs_used = 0
+if "pro_advanced_used" not in st.session_state: st.session_state.pro_advanced_used = 0
+if "enterprise_advanced_used" not in st.session_state: st.session_state.enterprise_advanced_used = 0
 if "audit_trail" not in st.session_state: st.session_state.audit_trail = []
 if "team_comments" not in st.session_state: st.session_state.team_comments = []
 
-@st.dialog("שדרוג למסלול Pro Enterprise 🚀", width="small")
+@st.dialog("שדרוג למסלולי הפרימיום של Enterprise Legal AI 🚀", width="large")
 def show_checkout_modal():
-    st.write("שדרג למסלול Pro וקבל גישה מלאה לניתוחים ללא הגבלה, חתימות קריפטוגרפיות וייצוא מתקדם.")
+    st.write("בחר את המסלול המתאים ביותר עבורך וקבל גישה מיידית לכלי הניתוח והאבטחה המתקדמים ביותר:")
+    
+    selected_plan = st.radio(
+        "בחר מסלול:",
+        [
+            "מסלול Pro (₪49/חודש) - עד 50 סריקות מסמכים בחודש, כולל 5 שימושים בחודש במודל המתקדם ביותר (GPT-4o), חתימות קריפטוגרפיות וייצוא מלא.",
+            "מסלול Enterprise Pro Max (₪249/חודש) - סריקות מסמכים ללא הגבלה בחודש, כולל 10 שימושים בחודש במודל המתקדם ביותר (GPT-4o), תמיכה בעדיפות וניהול צוות מלא."
+        ]
+    )
+    
+    price_tag = "₪49/חודש" if "₪49" in selected_plan else "₪249/חודש"
+    plan_code = "Pro (₪49)" if "₪49" in selected_plan else "Enterprise Pro Max (₪249)"
+
+    st.markdown("---")
+    
+    # תנאי שימוש ואחריות משתמש מפורטים ובולטים בתוך חלון התשלום
+    st.markdown("""
+    <div style="background-color: #1e293b; border: 1px solid #dc2626; padding: 12px; border-radius: 8px; font-size: 13px; color: #f8fafc; margin-bottom: 15px;">
+        <b style="color: #fca5a5;">📜 תנאי שימוש, הגבלת אחריות וסמכות משפטית:</b><br>
+        1. המערכת מספקת ניתוחים טכנולוגיים מבוססי בינה מלאכותית ו<b>אינה מהווה תחליף לייעוץ משפטי מקצועי</b> או חוות דעת של עורך דין.<br>
+        2. <b>אחריות משתמש מלאה:</b> המשתמש נושא באחריות הבלעדית לכל פעולה, חתימה, ניהול משא ומתן או החלטה עסקית/משפטית המתקבלת על בסיס פלטי המערכת.<br>
+        3. תשלום חודשי מתחדש (ניתן לביטול בכל עת דרך תפריט הניהול). אין החזר כספי על תקופות שימוש חלקיות.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    terms_accepted = st.checkbox("אני מאשר/ת שקראתי את תנאי השימוש, הסכמתי להם ואני לוקח/ת על עצמי את מלוא אחריות השימוש במערכת.")
+
     st.markdown("---")
     st.text_input("מספר כרטיס אשראי", placeholder="4242 •••• •••• 4242")
     c1, c2 = st.columns(2)
     with c1: st.text_input("תוקף", placeholder="MM/YY")
     with c2: st.text_input("CVV", placeholder="123")
     
-    if st.button("אישור וביצוע תשלום אבטחה (₪69/חודש)", type="primary", use_container_width=True):
-        st.session_state.user_plan = "Pro"
-        st.success("התשלום עבר בהצלחה! חשבונך שודרג ל-Pro 🎉")
-        st.rerun()
+    if st.button(f"אישור וביצוע תשלום אבטחה ({price_tag})", type="primary", use_container_width=True):
+        if not terms_accepted:
+            st.error("⚠️ חובה לאשר את תנאי השימוש והאחריות טרם ביצוע ההתקשרות והתשלום.")
+        else:
+            st.session_state.user_plan = plan_code
+            st.success(f"התשלום עבר בהצלחה! חשבונך שודרג למסלול {plan_code} 🎉")
+            st.rerun()
 
 # תפריט צד (Sidebar)
 with st.sidebar:
     st.title("🛡️ Legal AI Executive")
-    st.markdown(f"**מסלול נוכחי:** `{'Pro Enterprise' if st.session_state.user_plan == 'Pro' else 'Free Tier'}`")
+    st.markdown(f"**מסלול נוכחי:** `{st.session_state.user_plan}`")
     
-    # כפתור שדרוג נגיש ובולט תמיד בתפריט הצד
-    if st.button("🚀 מעבר / שדרוג למסלול Pro"):
-        show_checkout_modal()
+    if "Free" in st.session_state.user_plan:
+        if st.button("🚀 מעבר / שדרוג למסלולי פרימיום"):
+            show_checkout_modal()
 
     st.markdown("---")
     
-    if st.session_state.user_plan == "Free":
+    # הצגת מדדי מכסות לפי המסלול
+    if "Free" in st.session_state.user_plan:
         docs_left = 3 - st.session_state.free_docs_used
-        st.metric("מסמכים חינמיים שנותרו", f"{docs_left} / 3")
+        st.metric("מסמכים חינמיים שנותרו", f"{max(0, docs_left)} / 3")
         if docs_left <= 0:
-            st.error("הסתיימה המכסה החינמית.")
+            st.error("הסתיימה המכסה החינמית (3 סריקות). יש לשדרג מסלול.")
+    elif "Pro (₪49)" in st.session_state.user_plan:
+        docs_left = 50 - st.session_state.pro_docs_used
+        adv_left = 5 - st.session_state.pro_advanced_used
+        st.metric("סריקות Pro שנותרו", f"{max(0, docs_left)} / 50")
+        st.metric("שימושים מתקדמים (GPT-4o)", f"{max(0, adv_left)} / 5")
     else:
-        st.metric("מכסת Pro חודשית", f"{50 - st.session_state.pro_docs_used} / 50")
+        adv_left = 10 - st.session_state.enterprise_advanced_used
+        st.metric("סריקות חודשיות", "ללא הגבלה ♾️")
+        st.metric("שימושים מתקדמים (GPT-4o)", f"{max(0, adv_left)} / 10")
 
     st.markdown("---")
     st.subheader("⚙️ בחירת מנוע עיבוד (LLM Engine)")
@@ -106,6 +144,8 @@ with st.sidebar:
     if st.button("🔄 אפס מכסות לבדיקה", use_container_width=True):
         st.session_state.free_docs_used = 0
         st.session_state.pro_docs_used = 0
+        st.session_state.pro_advanced_used = 0
+        st.session_state.enterprise_advanced_used = 0
         st.success("המכסות אופסו בהצלחה!")
         st.rerun()
 
@@ -158,13 +198,63 @@ def create_excel_report(tables_data):
     buffer.seek(0)
     return buffer
 
+# בדיקת הרשאה לפי מכסות לפני פענוח מסמך
+def check_and_consume_quota(num_files=1):
+    plan = st.session_state.user_plan
+    if "Free" in plan:
+        if st.session_state.free_docs_used + num_files > 3:
+            st.error("⚠️ חרגת ממכסת 3 הסריקות החינמיות במסלול Free. אנא שדרג לאחד ממסלולי הפרימיום כדי להמשיך.")
+            show_checkout_modal()
+            return False
+        st.session_state.free_docs_used += num_files
+    elif "Pro (₪49)" in plan:
+        if st.session_state.pro_docs_used + num_files > 50:
+            st.error("⚠️ הגעת למכסת 50 הסריקות החודשיות במסלול Pro.")
+            return False
+        st.session_state.pro_docs_used += num_files
+    return True
+
+# בדיקת מכסת שימוש במודל המתקדם ביותר (GPT-4o)
+def check_and_consume_advanced_model():
+    plan = st.session_state.user_plan
+    if "Free" in plan:
+        st.warning("מודל זה זמין למנויי פרימיום בלבד.")
+        show_checkout_modal()
+        return False
+    elif "Pro (₪49)" in plan:
+        if st.session_state.pro_advanced_used >= 5:
+            st.error("⚠️ ניצלת את כל 5 השימושים החודשיים שלך במודל המתקדם במסלול Pro.")
+            return False
+        st.session_state.pro_advanced_used += 1
+    elif "Enterprise Pro Max" in plan:
+        if st.session_state.enterprise_advanced_used >= 10:
+            st.error("⚠️ ניצלת את כל 10 השימושים החודשיים שלך במודל המתקדם במסלול Enterprise.")
+            return False
+        st.session_state.enterprise_advanced_used += 1
+    return True
+
 # מסך ראשי
 st.title("⚖️ Legal AI Pro - Executive Suite")
 st.write("מערכת משפטית ארגונית מתקדמת עם בקרת סיכונים חכמה, ניתוח פיננסי, חתימות קריפטוגרפיות וניהול צוות.")
 
+# באנר משפטי בולט ואזהרת אחריות משתמש בדף הראשי
+st.markdown("""
+<div style="background-color: #7f1d1d; border: 2px solid #ef4444; padding: 15px; border-radius: 10px; color: #fef2f2; margin-bottom: 20px;">
+    <h4 style="margin: 0 0 8px 0; color: #fca5a5;">⚠️ הודעה משפטית חשובה, תנאי שימוש ואחריות משתמש מלאה (Legal Disclaimer & Liability Notice)</h4>
+    <p style="margin: 0; font-size: 13.5px; line-height: 1.5;">
+        המערכת מספקת תובנות אוטומטיות באמצעות בינה מלאכותית בלבד ו<b>אינה מהווה ייעוץ משפטי רשמי</b>, חוות דעת מקצועית או תחליף לייעוץ משפטי של עו"ד מוסמך. 
+        <b>אחריות שימוש מלאה:</b> השימוש בתוצרי המערכת, בניתוחים ובחתימות הקריפטוגרפיות הוא באחריותו הבלעדית של המשתמש. אין להסתמך על ניתוחים אלו כעל אסמכתא משפטית סופית ללא בחינה ידנית של איש מקצוע.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
 uploaded_files = st.file_uploader("העלה מסמכי משפט או חוזים (PDF, DOCX):", type=["pdf", "docx"], accept_multiple_files=True)
 
 if uploaded_files:
+    # אכיפת מכסת קבצים מול המסלול
+    if not check_and_consume_quota(len(uploaded_files)):
+        st.stop()
+
     all_docs_text = ""
     extracted_tables = []
     files_dict = {}
@@ -224,6 +314,11 @@ if uploaded_files:
         doc_type = st.selectbox("סוג ניתוח מבוקש:", ["ניתוח כללי וזכויות", "הסכם סודיות (NDA)", "חוזה שכירות", "הסכם עבודה"])
         
         if st.button("הפק ניתוח מלא עם תהליך שלבים", type="primary"):
+            # בדיקת מכסה למודל המתקדם (GPT-4o) אם מופעל בענן
+            if "ענן" in engine_mode and actual_model == "gpt-4o":
+                if not check_and_consume_advanced_model():
+                    st.stop()
+
             progress_bar = st.progress(0, text="מתחיל בתהליך ניתוח ארגוני...")
             time.sleep(0.3)
             progress_bar.progress(25, text="1. מפצח מבנה מסמך וטקסטים...")
