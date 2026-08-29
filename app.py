@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timedelta
 import pandas as pd
 import pdfplumber
+import pypdf
 import streamlit as st
 from docx import Document
 from openai import OpenAI
@@ -263,12 +264,44 @@ if uploaded_files:
         for file in uploaded_files:
             bytes_data = file.read()
             text = ""
-            with pdfplumber.open(io.BytesIO(bytes_data)) as pdf:
-                for i, page in enumerate(pdf.pages):
-                    extracted = page.extract_text()
-                    if extracted: text += f"\n--- עמוד {i+1} ---\n" + extracted
-                    for table in page.extract_tables() or []:
-                        extracted_tables.extend(table)
+            
+            # זיהוי לפי סוג קובץ
+            if file.name.endswith(".docx"):
+                try:
+                    doc = Document(io.BytesIO(bytes_data))
+                    for p in doc.paragraphs:
+                        if p.text.strip():
+                            text += p.text + "\n"
+                except Exception as e:
+                    st.error(f"❌ שגיאה בקריאת קובץ ה-Word {file.name}: {str(e)}")
+                    continue
+            else:
+                # טיפול ב-PDF עם מנגנון גיבוי כפול (pdfplumber + pypdf) למניעת תקיעות בקבצים קטנים או מיוחדים
+                try:
+                    with pdfplumber.open(io.BytesIO(bytes_data)) as pdf:
+                        for i, page in enumerate(pdf.pages):
+                            extracted = page.extract_text()
+                            if extracted: 
+                                text += f"\n--- עמוד {i+1} ---\n" + extracted
+                except Exception:
+                    pass # במקרה כישלון של pdfplumber, נעבור לגיבוי pypdf
+
+                # אם עדיין לא חולץ טקסט, נפעיל את רשת הביטחון pypdf
+                if not text.strip():
+                    try:
+                        reader = pypdf.PdfReader(io.BytesIO(bytes_data))
+                        for i, page in enumerate(reader.pages):
+                            extracted = page.extract_text()
+                            if extracted:
+                                text += f"\n--- עמוד {i+1} ---\n" + extracted
+                    except Exception as e:
+                        st.error(f"❌ שגיאה בפענוח קובץ ה-PDF {file.name}: הקובץ פגום או מוגן בסיסמה.")
+                        continue
+
+            # בדיקה האם הקובץ עדיין ריק מטקסט
+            if not text.strip():
+                st.warning(f"⚠️ הקובץ {file.name} נראה ריק מטקסט קריא (ייתכן שהוא סרוק כתמונה).")
+                continue
             
             files_dict[file.name] = text
             all_docs_text += f"\n\n=== קובץ: {file.name} ===\n" + text
