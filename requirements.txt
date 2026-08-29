@@ -7,4 +7,3 @@ ics
 pandas
 openpyxl
 pypdf
-tesseract-ocr
