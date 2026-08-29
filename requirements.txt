@@ -3,3 +3,6 @@ pdfplumber
 openai
 python-dotenv
 reportlab
+ics
+pandas
+openpyxl
