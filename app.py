@@ -14,6 +14,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from ics import Calendar, Event
 import openpyxl
+from PIL import Image
+import pytesseract
 
 # הגדרת תצורת העמוד
 st.set_page_config(
@@ -74,7 +76,6 @@ def show_checkout_modal():
 
     st.markdown("---")
     
-    # תנאי שימוש ואחריות משתמש מפורטים ובולטים בתוך חלון התשלום
     st.markdown("""
     <div style="background-color: #1e293b; border: 1px solid #dc2626; padding: 12px; border-radius: 8px; font-size: 13px; color: #f8fafc; margin-bottom: 15px;">
         <b style="color: #fca5a5;">📜 תנאי שימוש, הגבלת אחריות וסמכות משפטית:</b><br>
@@ -111,7 +112,6 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # הצגת מדדי מכסות לפי המסלול
     if "Free" in st.session_state.user_plan:
         docs_left = 3 - st.session_state.free_docs_used
         st.metric("מסמכים חינמיים שנותרו", f"{max(0, docs_left)} / 3")
@@ -199,7 +199,6 @@ def create_excel_report(tables_data):
     buffer.seek(0)
     return buffer
 
-# בדיקת הרשאה לפי מכסות לפני פענוח מסמך
 def check_and_consume_quota(num_files=1):
     plan = st.session_state.user_plan
     if "Free" in plan:
@@ -215,7 +214,6 @@ def check_and_consume_quota(num_files=1):
         st.session_state.pro_docs_used += num_files
     return True
 
-# בדיקת מכסת שימוש במודל המתקדם ביותר (GPT-4o)
 def check_and_consume_advanced_model():
     plan = st.session_state.user_plan
     if "Free" in plan:
@@ -238,7 +236,6 @@ def check_and_consume_advanced_model():
 st.title("⚖️ Legal AI Pro - Executive Suite")
 st.write("מערכת משפטית ארגונית מתקדמת עם בקרת סיכונים חכמה, ניתוח פיננסי, חתימות קריפטוגרפיות וניהול צוות.")
 
-# באנר משפטי בולט ואזהרת אחריות משתמש בדף הראשי
 st.markdown("""
 <div style="background-color: #7f1d1d; border: 2px solid #ef4444; padding: 15px; border-radius: 10px; color: #fef2f2; margin-bottom: 20px;">
     <h4 style="margin: 0 0 8px 0; color: #fca5a5;">⚠️ הודעה משפטית חשובה, תנאי שימוש ואחריות משתמש מלאה (Legal Disclaimer & Liability Notice)</h4>
@@ -249,10 +246,14 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-uploaded_files = st.file_uploader("העלה מסמכי משפט או חוזים (PDF, DOCX):", type=["pdf", "docx"], accept_multiple_files=True)
+# הרחבת סוגי הקובצים הנתמכים לכל סוג קובץ (PDF, DOCX, תמונות, קבצי טקסט וגיליונות)
+uploaded_files = st.file_uploader(
+    "העלה מסמכים, תמונות או קבצים מכל סוג (PDF, DOCX, PNG, JPG, TXT, CSV, XLSX ועוד):", 
+    type=["pdf", "docx", "png", "jpg", "jpeg", "webp", "tiff", "txt", "csv", "md", "xlsx"], 
+    accept_multiple_files=True
+)
 
 if uploaded_files:
-    # אכיפת מכסת קבצים מול המסלול
     if not check_and_consume_quota(len(uploaded_files)):
         st.stop()
 
@@ -260,13 +261,14 @@ if uploaded_files:
     extracted_tables = []
     files_dict = {}
 
-    with st.spinner("מחלץ טקסטים ומזהה נתונים רגישים..."):
+    with st.spinner("מחלץ טקסטים ומזהה נתונים רגישים מכל סוגי הקבצים..."):
         for file in uploaded_files:
             bytes_data = file.read()
             text = ""
+            filename_lower = file.name.lower()
             
-            # זיהוי לפי סוג קובץ
-            if file.name.endswith(".docx"):
+            # קבצי Word
+            if filename_lower.endswith(".docx"):
                 try:
                     doc = Document(io.BytesIO(bytes_data))
                     for p in doc.paragraphs:
@@ -275,8 +277,39 @@ if uploaded_files:
                 except Exception as e:
                     st.error(f"❌ שגיאה בקריאת קובץ ה-Word {file.name}: {str(e)}")
                     continue
+            
+            # קבצי תמונה (OCR באמצעות Tesseract)
+            elif filename_lower.endswith((".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff")):
+                try:
+                    image = Image.open(io.BytesIO(bytes_data))
+                    text = pytesseract.image_to_string(image, lang='heb+eng')
+                except Exception as e:
+                    st.error(f"❌ שגיאה בפענוח ה-OCR לתמונה {file.name}: {str(e)}")
+                    continue
+
+            # קבצי טקסט פשוטים / CSV / Markdown
+            elif filename_lower.endswith((".txt", ".csv", ".md")):
+                try:
+                    text = bytes_data.decode("utf-8", errors="ignore")
+                except Exception as e:
+                    st.error(f"❌ שגיאה בקריאת קובץ הטקסט {file.name}: {str(e)}")
+                    continue
+
+            # קבצי Excel
+            elif filename_lower.endswith(".xlsx"):
+                try:
+                    df_excel = pd.read_excel(io.BytesIO(bytes_data), sheet_name=None)
+                    for sheet_name, df in df_excel.items():
+                        text += f"\n--- גיליון: {sheet_name} ---\n" + df.to_string(index=False) + "\n"
+                        # הוספה לטבלאות לחילוץ ייעודי אם נדרש
+                        for row in df.values.tolist():
+                            extracted_tables.append([str(cell) for cell in row])
+                except Exception as e:
+                    st.error(f"❌ שגיאה בקריאת קובץ האקסל {file.name}: {str(e)}")
+                    continue
+
+            # קבצי PDF
             else:
-                # טיפול ב-PDF עם מנגנון גיבוי כפול (pdfplumber + pypdf) למניעת תקיעות בקבצים קטנים או מיוחדים
                 try:
                     with pdfplumber.open(io.BytesIO(bytes_data)) as pdf:
                         for i, page in enumerate(pdf.pages):
@@ -284,9 +317,8 @@ if uploaded_files:
                             if extracted: 
                                 text += f"\n--- עמוד {i+1} ---\n" + extracted
                 except Exception:
-                    pass # במקרה כישלון של pdfplumber, נעבור לגיבוי pypdf
+                    pass 
 
-                # אם עדיין לא חולץ טקסט, נפעיל את רשת הביטחון pypdf
                 if not text.strip():
                     try:
                         reader = pypdf.PdfReader(io.BytesIO(bytes_data))
@@ -298,15 +330,13 @@ if uploaded_files:
                         st.error(f"❌ שגיאה בפענוח קובץ ה-PDF {file.name}: הקובץ פגום או מוגן בסיסמה.")
                         continue
 
-            # בדיקה האם הקובץ עדיין ריק מטקסט
             if not text.strip():
-                st.warning(f"⚠️ הקובץ {file.name} נראה ריק מטקסט קריא (ייתכן שהוא סרוק כתמונה).")
+                st.warning(f"⚠️ הקובץ {file.name} נראה ריק מטקסט קריא.")
                 continue
             
             files_dict[file.name] = text
             all_docs_text += f"\n\n=== קובץ: {file.name} ===\n" + text
 
-    # כרטיסי מדדים עיצוביים
     st.markdown("### 📊 סיכום נתוני קלט והגנה")
     pii_found = detect_pii_entities(all_docs_text)
     
@@ -330,7 +360,6 @@ if uploaded_files:
     if c_em:
         for email in pii_found["אימיילים"]: all_docs_text = all_docs_text.replace(email, "[צונזר-אימייל]")
 
-    # טאבים מתקדמים
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📋 ניתוח ודוחות חתומים",
         "💰 סורק עלויות ועמלות",
@@ -347,7 +376,6 @@ if uploaded_files:
         doc_type = st.selectbox("סוג ניתוח מבוקש:", ["ניתוח כללי וזכויות", "הסכם סודיות (NDA)", "חוזה שכירות", "הסכם עבודה"])
         
         if st.button("הפק ניתוח מלא עם תהליך שלבים", type="primary"):
-            # בדיקת מכסה למודל המתקדם (GPT-4o) אם מופעל בענן
             if "ענן" in engine_mode and actual_model == "gpt-4o":
                 if not check_and_consume_advanced_model():
                     st.stop()
@@ -365,7 +393,7 @@ if uploaded_files:
             progress_bar.empty()
 
             prompt = f"""
-            נתח את החוזים הבאים ברמת פירוט מרבית. תן ציון סיכון כולל מתוך 100, פרט סעיפים בעייתיים, והצג המלצות.
+            נתח את החוזים והמסמכים הבאים ברמת פירוט מרבית. תן ציון סיכון כולל מתוך 100, פרט סעיפים בעייתיים, והצג המלצות.
             סוג מסמך: {doc_type}
             טקסט:
             {all_docs_text}
@@ -407,7 +435,7 @@ if uploaded_files:
         st.subheader("💰 סורק עלויות, קנסות ועמלות נסתרות (Financial Clause Extractor)")
         if st.button("סרוק סעיפים פיננסיים וקנסות"):
             with st.spinner("מחלץ נתונים כלכליים מהמסמך..."):
-                f_prompt = f"חלץ מתוך החוזים הבאים את כל נתוני התשלום, הקנסות, אחוזי הריבית, ערבויות ועלויות נסתרות. הצג בטבלה או ברשימה מסודרת:\n{all_docs_text}"
+                f_prompt = f"חלץ מתוך המסמכים הבאים את כל נתוני התשלום, הקנסות, אחוזי הריבית, ערבויות ועלויות נסתרות. הצג בטבלה או ברשימה מסודרת:\n{all_docs_text}"
                 f_resp = local_client.chat.completions.create(model=actual_model, messages=[{"role": "user", "content": f_prompt}])
                 st.markdown(f_resp.choices[0].message.content)
 
