@@ -98,7 +98,7 @@ with st.sidebar:
         actual_model = "llama3"
         st.caption("🔒 פועל באופן מקומי מלא (Zero Data Leakage).")
     else:
-        client = OpenAI(api_key="DityIfpJPQUAKeqEhUYX52hhpVt09q7X3evcdzBqk65_XrJcTZKhtGWdFvt9Gyn8rCxz7CFSsHt3B1bkFJk0tQuwief9QSuX9-XI60cZnN0MDoEPvesnNYvuxrkHBv4k5KKcWpZr")
+        client = OpenAI(api_key="DItyIfPjPQUAKeqEhUYX52hhpVtO9q7X3evcdzBqk65_XrJcTZKhtGWDfVt9Gyn8rCxz7CFSShT3BlbkFJKOtQuwiEf9QSuX9")
         actual_model = "gpt-4o"
         st.caption("☁️ מחובר לשרתי הענן המאובטחים.")
 
